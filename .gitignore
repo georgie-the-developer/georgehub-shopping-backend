@@ -1,0 +1,38 @@
+# Virtual environment
+venv/
+env/
+ENV/
+.venv/
+
+# Flask migrations
+migrations/
+
+# Python bytecode files
+*.pyc
+*.pyo
+__pycache__/
+pycache/
+
+# Environment variables
+.env
+
+# IDE/editor files
+.idea/
+.vscode/
+
+# macOS Finder settings
+.DS_Store
+
+# Windows-specific files
+Thumbs.db
+Desktop.ini
+
+# Log files
+*.log
+
+# Test coverage
+.coverage
+*posts/
+uploads/
+/app/about/
+/internal/
