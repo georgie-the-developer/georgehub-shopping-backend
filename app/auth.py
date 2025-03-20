@@ -58,7 +58,7 @@ def delete_confirmation_code():
 def csrf_token():
     """Generate and send the CSRF token."""
     token = generate_csrf()
-    response = make_response(jsonify({"message": "CSRF token set"}))
+    response = make_response(jsonify({"message": "CSRF token set", "csrf_token": token}))
     response.set_cookie(
         'csrf_token', token, httponly=False, secure=True, samesite='None'
     )
@@ -74,28 +74,23 @@ def register():
         data = request.get_json()
 
         # Validate confirmation code
-        confirmed = check_confirmation_code(data.get('confirmation_code'), session.get('confirmation_code'), session.get('confirmation_code_expiry'))
-        if not confirmed:
-            return jsonify({'message': 'Invalid or expired confirmation code'}), 400
+        # confirmed = check_confirmation_code(data.get('confirmation_code'), session.get('confirmation_code'), session.get('confirmation_code_expiry'))
+        # if not confirmed:
+        #     return jsonify({'message': 'Invalid or expired confirmation code'}), 400
         
         # Validate required fields for all users
-        required_fields = ['email', 'username', 'password', 'password_confirm', "full_name", "address", "card_number"]
+        required_fields = ['email', 'username', 'password', "full_name", "address", "card_number"]
         for field in required_fields:
             if not data.get(field):
                 return jsonify({'message': f'{field} is required'}), 400
-
+    
         email = data['email']
         username = data['username']
         password = data['password']
-        password_confirm = data['password_confirm']
         role = "buyer"
         full_name = data['full_name']
         address = data['address']
         card_number = data['card_number']
-        support_email = data['support_email'] or None
-        # Check password confirmation
-        if password != password_confirm:
-            return jsonify({'message': 'Passwords do not match'}), 400
 
         # Check existing email/username
         if User.query.filter_by(email=email).first():
@@ -113,7 +108,6 @@ def register():
             full_name=full_name,
             address=address,
             card_number=card_number,
-            support_email=support_email
         )
 
         db.session.add(new_user)
@@ -238,7 +232,7 @@ def update_user():
     full_name = data.get('full_name') or current_user.full_name
     address = data.get('address') or current_user.address
     card_number = data.get('card_number') or current_user.card_number
-
+    support_email = data.get('support_email') or current_user.support_email
     user = User.query.filter_by(id=current_user.id).first()
     if not user:
         return jsonify({'message': 'User not found'}), 404
@@ -250,6 +244,7 @@ def update_user():
     user.address = address
     user.full_name = full_name
     user.card_number = card_number
+    user.support_email = support_email
 
     db.session.commit()
 
@@ -260,7 +255,8 @@ def update_user():
             'role': role,
             'full_name': full_name,
             'address': address,
-            'card_number': card_number
+            'card_number': card_number,
+            'support_email': support_email
         }
     }), 200
 
