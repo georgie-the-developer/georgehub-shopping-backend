@@ -57,10 +57,10 @@ def delete_confirmation_code():
 @auth.route('/csrf-token', methods=['GET'])
 def csrf_token():
     """Generate and send the CSRF token."""
-    token = generate_csrf()
+    token = generate_csrf();
     response = make_response(jsonify({"message": "CSRF token set"}))
     response.set_cookie(
-        'csrf_token', token, httponly=False, secure=True, samesite='Strict'
+        'X-CSRFToken', token, httponly=False, secure=True, samesite='None'
     )
     return response
 
