@@ -66,6 +66,18 @@ def csrf_token():
 
 # ROUTES FOR GUEST USERS
 
+#Check username availability
+@auth.route("/check-username/<string:username>", methods=['GET'])
+@cross_origin(supports_credentials=True)
+def check_username(username):
+    if not username:
+        return jsonify({"message": "No username provided"})
+    user = User.query.filter_by(username=username).first()
+    if not user:
+        return jsonify({"message": "This username hasn't been taken yet"})
+    else:
+        return jsonify({"message": "This username is already taken"}) 
+    
 @auth.route('/register', methods=['POST'])
 @cross_origin(supports_credentials=True)
 def register():
