@@ -36,20 +36,38 @@ def is_seller():
 def is_buyer():
     return current_user.role == 'buyer'
 
-def store_confirmation_code(code):
-    session['confirmation_code'] = code
-    session['confirmation_code_expiry'] = time.time() + 300  # 5 minutes
+confirmation_codes = {}
 
-def check_confirmation_code(code, stored_code, expiry_time = 0):
-    if time.time() > expiry_time:
-        return False
-    if not stored_code or stored_code == "":
-        return False
-    return code == stored_code
+def store_confirmation_code(code, email):
+    confirmation_codes[email] = {'confirmation_code': code, 'confirmation_code_expiry': time.time() + 300}
 
-def delete_confirmation_code():
-    session.pop('confirmation_code', None)
-    session.pop('confirmation_code_expiry', None)
+def verify_confirmation_code(email, code):
+    # Check if email and code are provided
+    if not email or not code:
+        return False, "Email and confirmation code are required."
+
+    # Check if the email exists in the confirmation_codes
+    if email not in confirmation_codes:
+        return False, "Confirmation code not found for this email."
+
+    # Get the stored confirmation code and expiry
+    stored_data = confirmation_codes[email]
+
+    # Check if the code has expired
+    if time.time() > stored_data.get("confirmation_code_expiry", 0):
+        delete_confirmation_code(email)
+        return False, "Confirmation code has expired."
+
+    # Check if the code matches
+    if code == stored_data.get('confirmation_code'):
+        delete_confirmation_code(email)  # Optionally delete after success
+        return True, None  # Successfully verified
+
+    return False, "Invalid confirmation code."
+    
+def delete_confirmation_code(email):
+    if email in confirmation_codes:
+        del confirmation_codes[email]
 
 
 # ROUTES FOR ALL USERS
@@ -91,12 +109,17 @@ def register():
         #     return jsonify({'message': 'Invalid or expired confirmation code'}), 400
         
         # Validate required fields for all users
-        required_fields = ['email', 'username', 'password', "full_name", "address", "card_number"]
+        required_fields = ['email', 'confirmation_code', 'username', 'password', "full_name", "address", "card_number"]
         for field in required_fields:
             if not data.get(field):
                 return jsonify({'message': f'{field} is required'}), 400
     
         email = data['email']
+        confirmation_code  = data["confirmation_code"]
+        confirmed, message = verify_confirmation_code(confirmation_code, email)
+        if not confirmed:
+            return jsonify({"message": message}), 400
+        
         username = data['username']
         password = data['password']
         role = "buyer"
@@ -180,24 +203,21 @@ def login():
     except Exception as e:
         return jsonify({'message': 'An error occurred', 'error': str(e)}), 500
 
-@auth.route('/confirmation-code', methods=['POST'])
+@auth.route('/confirmation-code/<string:email>', methods=['GET'])
 @cross_origin(supports_credentials=True)
-@login_required
-def send_confirmation_code():
+def send_confirmation_code(email):
+    validate_csrf()
+    if not email:
+        return jsonify({"error": "Email is required"}), 400
 
-    validate_request_csrf()
+    # Generate a random OTP
+    otp = random.randint(100000, 999999)
 
-    user = User.query.filter_by(id=current_user.id).first()
-    if not user:
-        return jsonify({'message': 'User not found'}), 404
+    # Store OTP and email with timestamp
+    store_confirmation_code(otp, email)
 
-    
-    confirmation_code = str(random.randint(1000, 9999))
-    store_confirmation_code(confirmation_code)
-
-    # TODO: Send `confirmation_code` via email/SMS (implement actual sending logic)
-    print(f"Confirmation code for {current_user.email}: {confirmation_code}")  # Debugging only
-
+    # Send code to email 
+        
     return jsonify({'message': 'Confirmation code sent successfully!'}), 200
 
 # ROUTES FOR REGISTERED USERS
@@ -226,15 +246,14 @@ def me():
 @login_required
 def update_user():
     validate_request_csrf()
-
     data = request.get_json()
+    email = data.get('email') or current_user.email
 
     # Validate confirmation code
-    confirmed = check_confirmation_code(data.get('confirmation_code'), session.get('confirmation_code'), session.get('confirmation_code_expiry'))
+    confirmed, message = verify_confirmation_code(data.get('confirmation_code'), email)
     if not confirmed:
-        return jsonify({'message': 'Invalid or expired confirmation code'}), 400
+        return jsonify({'message': message}), 400
     
-    email = data.get('email') or current_user.email
     username = data.get('username') or current_user.username
     password = data.get('password') or current_user.password
     role = data.get('role') or current_user.role
