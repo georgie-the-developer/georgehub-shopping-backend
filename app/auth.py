@@ -1,6 +1,8 @@
 from flask import Blueprint, request, jsonify, make_response, session
 from flask_login import current_user, login_user, login_required, logout_user
 from flask_cors import cross_origin
+from flask_mail import Message
+from app import mail;
 from werkzeug.security import generate_password_hash, check_password_hash
 from app import db
 from app.models import User
@@ -203,10 +205,12 @@ def login():
     except Exception as e:
         return jsonify({'message': 'An error occurred', 'error': str(e)}), 500
 
-@auth.route('/confirmation-code/<string:email>', methods=['GET'])
+@auth.route('/confirmation-code', methods=['POST'])
 @cross_origin(supports_credentials=True)
-def send_confirmation_code(email):
-    validate_csrf()
+def send_confirmation_code():
+    validate_request_csrf()
+    data = request.get_json()
+    email = data.get("email")
     if not email:
         return jsonify({"error": "Email is required"}), 400
 
@@ -217,8 +221,22 @@ def send_confirmation_code(email):
     store_confirmation_code(otp, email)
 
     # Send code to email 
-        
-    return jsonify({'message': 'Confirmation code sent successfully!'}), 200
+    subject = "Confirmation code"
+    body = f"Your GeorgeHub Shopping confirmation code: {otp}. If you didn't ask for it, " \
+    "it means that somebody else is trying to use your email for registration at " \
+    "GeorgeHub Shopping or reset a password for this email."
+
+    if not subject or not body:
+        return jsonify({"error": "Missing fields"}), 400
+
+    msg = Message(subject,
+                  recipients=[email],
+                  body=body)
+    try:
+        mail.send(msg)
+        return jsonify({"message": "Email sent successfully!"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # ROUTES FOR REGISTERED USERS
 
