@@ -41,7 +41,7 @@ def is_buyer():
 confirmation_codes = {}
 
 def store_confirmation_code(code, email):
-    confirmation_codes[email] = {'confirmation_code': code, 'confirmation_code_expiry': time.time() + 300}
+    confirmation_codes[email] = {'confirmation_code': str(code), 'confirmation_code_expiry': time.time() + 300}
 
 def verify_confirmation_code(email, code):
     # Check if email and code are provided
@@ -61,11 +61,12 @@ def verify_confirmation_code(email, code):
         return False, "Confirmation code has expired."
 
     # Check if the code matches
-    if code == stored_data.get('confirmation_code'):
-        delete_confirmation_code(email)  # Optionally delete after success
+    stored_code = stored_data.get('confirmation_code')
+    if code == stored_code:
+        # delete_confirmation_code(email)  # Optionally delete after success
         return True, None  # Successfully verified
-
-    return False, "Invalid confirmation code."
+    else:
+        return False, "Invalid confirmation code."
     
 def delete_confirmation_code(email):
     if email in confirmation_codes:
@@ -118,7 +119,7 @@ def register():
     
         email = data['email']
         confirmation_code  = data["confirmation_code"]
-        confirmed, message = verify_confirmation_code(confirmation_code, email)
+        confirmed, message = verify_confirmation_code(email, confirmation_code)
         if not confirmed:
             return jsonify({"message": message}), 400
         
@@ -238,6 +239,26 @@ def send_confirmation_code():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@auth.route("/reset-password", methods=["POST"])
+@cross_origin(supports_credentials=True)
+def reset_password():
+    validate_request_csrf()
+    data = request.get_json()
+    email = data.get("email")
+    confirmation_code = data.get("confirmation_code")
+    new_password = data.get("new_password")
+    confirmed, message = verify_confirmation_code(email, confirmation_code)
+    
+    if not confirmed:
+        return jsonify({"message": message}), 400
+    
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({"message": "You are not registered"})
+
+    user.password = generate_password_hash(new_password, method='pbkdf2:sha256')
+    db.session.commit()
+    return jsonify({"message": "Password reset successfully"})
 # ROUTES FOR REGISTERED USERS
 
 @auth.route('/me', methods=['GET'])
