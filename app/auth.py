@@ -209,7 +209,7 @@ def login():
 @auth.route('/confirmation-code', methods=['POST'])
 @cross_origin(supports_credentials=True)
 def send_confirmation_code():
-    validate_request_csrf()
+    # validate_request_csrf()
     data = request.get_json()
     print("Received data:", data)
     email = data.get("email")
