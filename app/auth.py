@@ -11,6 +11,7 @@ from werkzeug.exceptions import BadRequest
 from flask_wtf.csrf import generate_csrf, validate_csrf, ValidationError
 import random
 import time
+import os
 
 auth = Blueprint('auth', __name__)
 
@@ -81,7 +82,7 @@ def csrf_token():
     token = generate_csrf()
     response = make_response(jsonify({"message": "CSRF token set", "csrf_token": token}))
     response.set_cookie(
-        'csrf_token', token, httponly=False, secure=True, samesite='None'
+        'csrf_token', token, httponly=False, secure=True, samesite='None', domain=os.getenv("FRONTEND_APP_URL"), path="/"
     )
     return response
 
@@ -209,7 +210,7 @@ def login():
 @auth.route('/confirmation-code', methods=['POST'])
 @cross_origin(supports_credentials=True)
 def send_confirmation_code():
-    # validate_request_csrf()
+    validate_request_csrf()
     data = request.get_json()
     print("Received data:", data)
     email = data.get("email")
