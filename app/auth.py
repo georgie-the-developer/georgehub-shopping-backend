@@ -211,9 +211,9 @@ def login():
 def send_confirmation_code():
     validate_request_csrf()
     data = request.get_json()
+    print("Received data:", data)
     email = data.get("email")
     if not email:
-        print("No email provided")
         return jsonify({"error": "Email is required"}), 400
 
     # Generate a random OTP
@@ -238,7 +238,6 @@ def send_confirmation_code():
         mail.send(msg)
         return jsonify({"message": "Email sent successfully!"}), 200
     except Exception as e:
-        print("Error sending mail")
         return jsonify({"error": str(e)}), 500
 
 @auth.route("/reset-password", methods=["POST"])
