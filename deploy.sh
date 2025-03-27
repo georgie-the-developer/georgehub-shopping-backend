@@ -6,4 +6,4 @@
   flask db upgrade
 
   # Start the Gunicorn server
-  gunicorn app:app
+  gunicorn run:app
