@@ -8,27 +8,13 @@ from app import db
 from app.models import User
 from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.exceptions import BadRequest
-from flask_wtf.csrf import generate_csrf, validate_csrf, ValidationError
+from flask_wtf.csrf import generate_csrf
 import random
 import time
+from app.utils.validate_request_csrf import validate_request_csrf
 import os
 
 auth = Blueprint('auth', __name__)
-
-def validate_request_csrf():
-    try:
-        csrf_token = request.headers.get('Cookies').split('csrf_token=')[1]
-        print(csrf_token)
-        if not csrf_token:
-            return jsonify({"message": "No CSRF token provided"}), 401
-        # Validate the CSRF token
-        validate_csrf(csrf_token)
-    except ValidationError:
-        # CSRF validation failed, possibly due to expired session
-        return jsonify({"message": "CSRF token invalid or session expired"}), 401
-    except Exception as e:
-        # Handle any other exceptions
-        return jsonify({"message": "CSRF validation failed", "error": str(e)}), 401
 
 def is_admin():
     return current_user.role == 'admin'
@@ -79,13 +65,13 @@ def delete_confirmation_code(email):
 @auth.route('/csrf-token', methods=['GET'])
 def csrf_token():
     """Generate and send the CSRF token."""
-    token = generate_csrf()
+    token = generate_csrf(secret_key=os.getenv('SECRET_KEY'))
     response = make_response(jsonify({"message": "CSRF token set", "csrf_token": token}))
     response.set_cookie(
-        'csrf_token', token, httponly=False, secure=True, samesite='None'
+        'csrf_token', token, httponly=True, secure=True, samesite='None'
     )
     response.set_cookie(
-        'X-CSRFToken', token, httponly=False, secure=True, samesite='None'
+        'X-CSRFToken', token, httponly=True, secure=True, samesite='None'
     )
     return response
 
