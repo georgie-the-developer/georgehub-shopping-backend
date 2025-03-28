@@ -35,7 +35,7 @@ def create_app():
     # Initialize extensions
     db.init_app(app)
     Migrate(app, db)
-    csrf = CSRFProtect(app)
+    # csrf = CSRFProtect(app)
     mail.init_app(app)
 
     # Restrict access to frontend
