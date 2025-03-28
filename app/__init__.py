@@ -22,6 +22,10 @@ def create_app():
     app.config['UPLOADS_FOLDER'] = os.getenv('UPLOADS_FOLDER')
     app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Limit to 16MB
     app.config['WTF_CSRF_TIME_LIMIT'] = 3600
+    app.config.update(
+        SESSION_COOKIE_SAMESITE='None',
+        SESSION_COOKIE_SECURE=True
+    )
 
     # mailing service configuration
     app.config['MAIL_SERVER'] = 'smtp.gmail.com'
