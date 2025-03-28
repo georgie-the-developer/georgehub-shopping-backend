@@ -82,7 +82,7 @@ def csrf_token():
     token = generate_csrf()
     response = make_response(jsonify({"message": "CSRF token set", "csrf_token": token}))
     response.set_cookie(
-        'csrf_token', token, httponly=False, secure=True, samesite='None'
+        'csrf_token', token, httponly=False, secure=True, domain=os.getenv("FRONTEND_APP_DOMAIN"), samesite='None'
     )
     return response
 
