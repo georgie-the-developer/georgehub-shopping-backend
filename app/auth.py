@@ -84,6 +84,9 @@ def csrf_token():
     response.set_cookie(
         'csrf_token', token, httponly=False, secure=True, samesite='None'
     )
+    response.set_cookie(
+        'X-CSRFToken', token, httponly=False, secure=True, samesite='None'
+    )
     return response
 
 # ROUTES FOR GUEST USERS
@@ -172,7 +175,6 @@ def register():
 @auth.route('/login', methods=['POST'])
 @cross_origin(supports_credentials=True)
 def login():
-    try:
         validate_request_csrf()
         data = request.get_json()
         username = data.get('username') or False
@@ -186,7 +188,8 @@ def login():
             user = User.query.filter_by(email=email).first()
         else:
             user = User.query.filter_by(username=username).first()
-        
+        if not user:
+            return jsonify({'message': "Invalid credentials"}), 401
         if not user.email or not check_password_hash(user.password, password):
             return jsonify({'message': 'Invalid credentials'}), 401
         
@@ -203,9 +206,6 @@ def login():
                 'card_number': user.card_number
             }
         }), 200
-
-    except Exception as e:
-        return jsonify({'message': 'An error occurred', 'error': str(e)}), 500
 
 @auth.route('/confirmation-code', methods=['POST'])
 @cross_origin(supports_credentials=True)
