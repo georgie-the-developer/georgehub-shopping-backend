@@ -249,74 +249,79 @@ def reset_password():
     return jsonify({"message": "Password reset successfully"})
 # ROUTES FOR REGISTERED USERS
 
-@auth.route('/me', methods=['GET'])
+@auth.route('/me', methods=['GET', 'PUT'])
 @login_required
 @cross_origin(supports_credentials=True)
 def me():
     try:
-        return jsonify({
-            'user': {
-                'id': current_user.id,
-                'email': current_user.email,
-                'username': current_user.username,
-                'role': current_user.role,
-                'full_name': current_user.full_name if current_user.role in ['buyer', 'seller'] else None,
-                'address': current_user.address if current_user.role in ['buyer', 'seller'] else None,
-                'card_number': current_user.card_number if current_user.role in ['buyer', 'seller'] else None
-            }
-        }), 200
+        validate_request_csrf()
+        if request.method == "GET":
+            return jsonify({
+                'user': {
+                    'id': current_user.id,
+                    'email': current_user.email,
+                    'username': current_user.username,
+                    'role': current_user.role,
+                    'full_name': current_user.full_name if current_user.role in ['buyer', 'seller'] else None,
+                    'address': current_user.address if current_user.role in ['buyer', 'seller'] else None,
+                    'card_number': current_user.card_number if current_user.role in ['buyer', 'seller'] else None
+                }
+            }), 200
+        elif request.method == "PUT":
+            data = request.get_json()
+
+            old_email = current_user.email
+            new_email = data.get("email")
+
+            # Validate confirmation code
+            confirmed, message = verify_confirmation_code(old_email, data.get('confirmation_code'))
+            if not confirmed:
+                return jsonify({'message': message}), 400
+            if new_email and new_email != current_user.email: 
+                confirmed, message = verify_confirmation_code(new_email, data.get('new_email_confirmation_code'))
+                if not confirmed:
+                    return jsonify({'message': message}), 400
+                
+            username = data.get('username') or current_user.username
+            password = data.get('password') or current_user.password
+            role = data.get('role') or current_user.role
+            if role not in ['buyer', 'seller']:
+                return jsonify({'message': 'Invalid role'}), 400
+            
+            full_name = data.get('full_name') or current_user.full_name
+            address = data.get('address') or current_user.address
+            card_number = data.get('card_number') or current_user.card_number
+            support_email = data.get('support_email') or current_user.support_email
+            user = User.query.filter_by(id=current_user.id).first()
+            if not user:
+                return jsonify({'message': 'User not found'}), 404
+            
+            user.email = new_email or old_email
+            user.username = username
+            user.password = generate_password_hash(password, method='pbkdf2:sha256')
+            user.role = role
+            user.address = address
+            user.full_name = full_name
+            user.card_number = card_number
+            user.support_email = support_email
+
+            db.session.commit()
+
+            return jsonify({
+                'message': 'User updated to successfully!',
+                'user': {
+                    'email': new_email or old_email,
+                    'role': role,
+                    'full_name': full_name,
+                    'address': address,
+                    'card_number': card_number,
+                    'support_email': support_email
+                }
+            }), 200
+        else: 
+            return jsonify({"message": "Usupported method type"}), 415
     except Exception as e:
         return jsonify({'message': 'An error occurred', 'error': str(e)}), 500
-
-@auth.route('/me', methods=['PUT'])
-@cross_origin(supports_credentials=True)
-@login_required
-def update_user():
-    validate_request_csrf()
-    data = request.get_json()
-    email = data.get('email') or current_user.email
-
-    # Validate confirmation code
-    confirmed, message = verify_confirmation_code(data.get('confirmation_code'), email)
-    if not confirmed:
-        return jsonify({'message': message}), 400
-    
-    username = data.get('username') or current_user.username
-    password = data.get('password') or current_user.password
-    role = data.get('role') or current_user.role
-    if role not in ['buyer', 'seller']:
-        return jsonify({'message': 'Invalid role'}), 400
-    
-    full_name = data.get('full_name') or current_user.full_name
-    address = data.get('address') or current_user.address
-    card_number = data.get('card_number') or current_user.card_number
-    support_email = data.get('support_email') or current_user.support_email
-    user = User.query.filter_by(id=current_user.id).first()
-    if not user:
-        return jsonify({'message': 'User not found'}), 404
-    
-    user.email = email
-    user.username = username
-    user.password = generate_password_hash(password, method='pbkdf2:sha256')
-    user.role = role
-    user.address = address
-    user.full_name = full_name
-    user.card_number = card_number
-    user.support_email = support_email
-
-    db.session.commit()
-
-    return jsonify({
-        'message': 'User updated to successfully!',
-        'user': {
-            'email': email,
-            'role': role,
-            'full_name': full_name,
-            'address': address,
-            'card_number': card_number,
-            'support_email': support_email
-        }
-    }), 200
 
 # Route for logout
 @auth.route('/logout', methods=['POST'])
