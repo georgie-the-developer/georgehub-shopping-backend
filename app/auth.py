@@ -332,3 +332,21 @@ def logout():
     logout_user()
     response = make_response(jsonify({"message": "Logout successful"}))
     return response
+
+# Route for account deletion
+@auth.route('/delete-account', methods=["POST"])
+@login_required
+@cross_origin(supports_credentials=True)
+def delete_account():
+    data = request.get_json()
+
+    confirmed, message = verify_confirmation_code(current_user.email, data.get('confirmation_code'))
+    if not confirmed:
+        return jsonify({'message': message}), 400
+    
+    user = User.query.get_or_404(current_user.id)
+    db.session.delete(user)
+    db.session.commit()
+    logout_user()
+    return jsonify({"message": "Account deleted successfully"})
+    
